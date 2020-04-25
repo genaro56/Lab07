@@ -2,15 +2,16 @@ const express = require('express');
 const app = express();
 const bodyParser = require('body-parser');
 const morgan = require('morgan');
-const jsonParser = bodyParser.json();
-const validateToken = require('./middleware/validateToken');
 const uuid = require('uuid');
+const jsonParser = bodyParser.json();
+
+/* middleware */
+const validateToken = require('./middleware/validateToken');
+const validatePatch = require('./middleware/validatePatch');
+
+
 app.use(morgan('dev'));
 app.use(validateToken);
-
-// http://localhost:8080/api/bookmarks
-// http://localhost:8080/api/bookmarksById?id=123
-
 
 /**
  * id: uuid.v4(),
@@ -21,21 +22,21 @@ app.use(validateToken);
  */
 let bookmarksList = [
 	{
-		id: "123",
+		id: 123,
 		title: 'Pride and Prejudice wiki',
 		description: 'lorem ipsum dolor sur amat',
 		url: 'https://en.wikipedia.org/wiki/Pride_and_Prejudice',
 		rating: 5,
 	},
 	{
-		id: "456",
+		id: 456,
 		title: 'Pride and Prejudice wiki',
 		description: 'lorem ipsum dolor sur amat',
 		url: 'https://en.wikipedia.org/wiki/Pride_and_Prejudice',
 		rating: 5,
 	},
 	{
-		id: "789",
+		id: 789,
 		title: 'higher-order-functions',
 		description: 'haskelll hof tutorial',
 		url: 'http://learnyouahaskell.com/higher-order-functions',
@@ -94,25 +95,10 @@ app.post('/api/bookmarks', [jsonParser, validateToken], (req, res) => {
 	return res.status(201).json({ bookmark: newBookmark });
 });
 
-app.patch('/api/bookmark/:id', [jsonParser, validateToken], (req, res) => {
+app.patch('/api/bookmark/:id', [jsonParser, validatePatch, validateToken], (req, res) => {
 	let id = req.params.id;
-	let bodyId = req.body.id;
-	let updatedBookmark = {};
+	const {title, description, url, rating} = req.body;
 
-	if (!bodyId) {
-		res.statusMessage = "The id must be sent in the body"
-		res.status(406).end();
-	}
-	if (!id) {
-		res.statusMessage = "The id must be sent as a parameter"
-		res.status(406).end();
-	}
-	if (id !== bodyId) {
-		res.statusMessage = "The ids must match"
-		res.status(409).end();
-	}
-	const { title, description, url, rating } = req.body;
-	console.log(req.body);
 	if (Object.keys(req.body).length < 2) {
 		res.statusMessage = "Please provide at least one parameter and an id to update the object";
 		return res.status(406).end();
@@ -121,7 +107,7 @@ app.patch('/api/bookmark/:id', [jsonParser, validateToken], (req, res) => {
 		return res.status(406).end();
 	}
 	let bookmarkIndex = bookmarksList.findIndex(bookmark => {
-		if (bookmark.id === id) {
+		if (bookmark.id == id) {
 			return true;
 		}
 	});
@@ -129,8 +115,12 @@ app.patch('/api/bookmark/:id', [jsonParser, validateToken], (req, res) => {
 		res.statusMessage = "The id sent does not exist in the bookmarks-api.";
 		return res.status(406).end();
 	} else {
-		const bookmarkToUpdate = bookmarksList[bookmarkIndex];
-		bookmarksList[bookmarkIndex] = { ...bookmarkToUpdate, ...req.body }
+		const _bookmarkToUpdate = {
+			...bookmarksList[bookmarkIndex],
+			...req.body,
+		};
+		console.log('updated:', _bookmarkToUpdate);
+		bookmarksList[bookmarkIndex] = { ..._bookmarkToUpdate, id: bookmarksList[bookmarkIndex].id  };
 	}
 	console.log('bookmark updated:', bookmarksList[bookmarkIndex]);
 
